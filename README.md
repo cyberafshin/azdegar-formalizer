@@ -1,0 +1,1 @@
+Azdegar Formalizer translates natural language sentences to symbolic logic. The logical representation of a sentence might be thought of as a structure that determines from which sentences it can be validly deduced, and which sentences can be validly deduced from it and other premises.
