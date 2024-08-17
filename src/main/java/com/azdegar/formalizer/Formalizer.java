@@ -16,7 +16,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -38,7 +37,6 @@ public class Formalizer {
         List<Formula> ret = new ArrayList();
         idxVar = 0;
         dialect = d;
-//        parser.openIE(sentence);
         boolean conclusion = false;
         try {
             Map<Integer, Clause> parsed = parser.parse(sentence, null);
@@ -119,15 +117,6 @@ public class Formalizer {
                                 }
                                 i++;
                             }
-//                        } else if (conditional) {
-//                            int i = 0;
-//                            while (i < main.size()) {
-//                                if (main.get(i).matchw(CLAUSE_PLACEHOLDER)) {
-//                                    int r = Integer.parseInt(main.get(i).word().substring(1, main.get(i).word().length() - 1));
-//                                    formula = new Formula(ret.get(ret.size() - 1), Connective.IMPLICATION, subs.get(r));
-//                                }
-//                                i++;
-//                            }
                         }
                     }
 
@@ -136,37 +125,6 @@ public class Formalizer {
                     }
                     if (conditional && main.endsWith(",")) {
                         connective = Connective.IMPLICATION;
-                    }
-                }
-            }
-//            );
-        } catch (Exception ex) {
-            System.err.println(ex.getMessage());
-        }
-        return ret;
-    }
-
-    private List<Formula> formalize1(String sentence, FormalizationDialect d) {
-        List<Formula> ret = new ArrayList();
-        idxVar = 0;
-        dialect = d;
-        boolean conditional = false;
-        Formula group = null;
-        try {
-            Map<Integer, Clause> parsed = parser.parse(sentence, null);
-            for (Integer key : parsed.keySet()) {
-                Clause main = parsed.get(key);
-                if (main.isIfStmt()) {
-                    conditional = true;
-                }
-                if (main.size() > 1) {
-                    Formula formula = buildFormula(main, false);
-                    ret.add(formula);
-
-                    if (!main.subs().isEmpty()) {
-                        main.subs().forEach((skey, sub) -> {
-//                        System.out.println((key + skey) + "\t" + sub);
-                        });
                     }
                 }
             }
