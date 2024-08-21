@@ -178,10 +178,23 @@ public class Formalizer {
         } else {
             WordGroup subject = parts.get("subj");
             WordGroup object = parts.get("dobj");
+            if (subject.eqt(0, "PRP")) {
+                if (clause.getParent() != null) {
+                    WordGroup obj = clause.getParent().getObject();
+                    if (obj != null) {
+                        subject = obj;
+                    }
+                    subject.get(0).setReference(obj);
+                }
+            }
             Map<String, String> vars = new LinkedHashMap();
             if (dialect == FormalizationDialect.COMPUTER_SCIENTIST) {
                 if (subject != null) {
-                    vars.put(subject.toString(), wordgroupToVariable(subject));
+                    String s = subject.toString();
+                    if (subject.isPronoun() && subject.get(0).getReference() != null) {
+                        s = subject.get(0).getReference().toString();
+                    }
+                    vars.put(s, wordgroupToVariable(subject));
                 }
                 if (object != null) {
                     vars.put(object.toString(), wordgroupToVariable(object));
