@@ -178,6 +178,7 @@ public class Formalizer {
         } else {
             WordGroup subject = parts.get("subj");
             WordGroup object = parts.get("dobj");
+            Quantifier quantifier = null;
             if (subject.eqt(0, "PRP")) {
                 if (clause.getParent() != null) {
                     WordGroup obj = clause.getParent().getObject();
@@ -185,6 +186,20 @@ public class Formalizer {
                         subject = obj;
                     }
                     subject.get(0).setReference(obj);
+                }
+            }
+            if (object != null && object.eqt(0, "PRP")) {
+                if (clause.getParent() != null) {
+                    WordGroup obj = clause.getParent().getObject();
+                    if (obj != null) {
+                        object = obj;
+                    } else {
+                        obj = clause.getParent().getSubject();
+                        if (obj != null) {
+                            object = obj;
+                        }
+                    }
+                    object.get(0).setReference(obj);
                 }
             }
             Map<String, String> vars = new LinkedHashMap();
@@ -217,12 +232,40 @@ public class Formalizer {
                 formula = new Formula(logicalForm(parts.get("verb"), new ArrayList(vars.values()), dialect));
 
             }
+            if (subject.eqwci(0, "someone")) {
+                if (subject.get(1).isPlaceHolder()) {
+                    int k = subject.get(1).getClauseId();
+                    Clause sub = clause.getSub(k);
+                    if (sub.get(0).matcht("NNP?S?")) {
+                        ExtWord someone = new ExtWord(varNames[idxVar], "NN", varNames[idxVar]);
+                        sub.add(someone);
+                        Formula left = buildFormula(clause.getSub(k), conclusion);
+                        
+                        WordGroup wg = new WordGroup(clause.words().subList(2, clause.words().size()));
+                        wg.add(0, someone);
+                        Formula right = buildFormula(new Clause(wg), conclusion);
+//                        Formula right = new Formula(logicalForm(object, Arrays.asList(varNames[idxVar]), dialect));
+                        formula = new Formula(left, Connective.CONJUNCTION, right);
+                        formula.addQuantifier(Quantifier.EXISTENTIAL, varNames[idxVar]);
+                        idxVar++;
+                    }else if (sub.words().eqwci(0, "who")) {
+                        sub.words().get(0).change(varNames[idxVar],"NN");
+                        Formula left = buildFormula(clause.getSub(k), conclusion);
+                        Formula right = new Formula(logicalForm(object, Arrays.asList(varNames[idxVar]), dialect));
+                        formula = new Formula(left, Connective.CONJUNCTION, right);
+                        formula.addQuantifier(Quantifier.EXISTENTIAL, varNames[idxVar]);
+                        idxVar++;
+                    }
+
+                }
+            }
 
         }
 
         if (formula != null && (clause.get(0).matchw("therefore|so|hence") || conclusion)) {
             formula.setConclusion(true);
         }
+
         return formula;
 
     }
