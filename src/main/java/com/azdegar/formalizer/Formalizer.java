@@ -170,7 +170,7 @@ public class Formalizer {
                     Formula right = new Formula(logicalForm(predicate, Arrays.asList(varNames[idxVar]), dialect));
                     formula = new Formula(left, Connective.CONJUNCTION, right);
                     formula.addQuantifier(Quantifier.EXISTENTIAL, varNames[idxVar]);
-                    idxVar++;
+//                    idxVar++;
                 }
             } else {
                 formula = new Formula(logicalForm(predicate, Arrays.asList(subject.get(0).word().toLowerCase()), dialect));
