@@ -48,7 +48,7 @@ public class Formalizer {
                 parser.processPhrasal(main.getWords());
 
                 if (main.size() == 1) {
-                    if (main.get(0).eqw("or")) {
+                    if (main.get(0).matchw("n?or")) {
                         connective = Connective.DISJUNCTION;
                     }
                 } else if (main.size() == 2) {
@@ -85,7 +85,7 @@ public class Formalizer {
                     if (formula == null) {
                         int i = 0;
                         while (i < main.size()) {
-                            if (main.get(i).matchw("and|or")) {
+                            if (main.get(i).matchw("and|n?or")) {
                                 int l = -1;
                                 int r = -1;
                                 if (main.get(i - 1).matchw(CLAUSE_PLACEHOLDER)) {
@@ -178,8 +178,10 @@ public class Formalizer {
         } else {
             WordGroup subject = parts.get("subj");
             WordGroup object = parts.get("dobj");
-            Quantifier quantifier = null;
-            if (subject.eqt(0, "PRP")) {
+            WordGroup iobject = parts.get("iobj");
+//            Quantifier quantifier = null;
+
+            if (subject != null && subject.eqt(0, "PRP")) {
                 if (clause.getParent() != null) {
                     WordGroup obj = clause.getParent().getObject();
                     if (obj != null) {
@@ -202,37 +204,71 @@ public class Formalizer {
                     object.get(0).setReference(obj);
                 }
             }
-            Map<String, String> vars = new LinkedHashMap();
-            if (dialect == FormalizationDialect.COMPUTER_SCIENTIST) {
-                if (subject != null) {
-                    String s = subject.toString();
-                    if (subject.isPronoun() && subject.get(0).getReference() != null) {
-                        s = subject.get(0).getReference().toString();
-                    }
-                    vars.put(s, wordgroupToVariable(subject));
+            int idxNorSubject = -1;
+            if (subject != null) {
+                idxNorSubject = subject.indexOf("nor");
+            }
+            int idxNorObject = -1;
+            if (object != null) {
+                idxNorObject = object.indexOf("nor");
+            }
+            if (idxNorSubject == -1 && idxNorObject == -1) {
+                Map<String, String> vars = new LinkedHashMap();
+
+                if (subject != null && !subject.isEmpty()) {
+                    putVar(vars, subject, dialect);
                 }
-                if (object != null) {
-                    vars.put(object.toString(), wordgroupToVariable(object));
+                if (object != null && !object.isEmpty()) {
+                    putVar(vars, object, dialect);
                 }
-                if (parts.get("iobj") != null && !parts.get("iobj").isEmpty()) {
-                    vars.put(parts.get("iobj").toString(), wordgroupToVariable(parts.get("iobj")));
+                if (iobject != null && !iobject.isEmpty()) {
+                    putVar(vars, iobject, dialect);
                 }
+
                 formula = new Formula(logicalForm(parts.get("verb"), new ArrayList(vars.values()), dialect));
             } else {
-                if (subject != null) {
-                    putVar(vars, subject);
-                }
-                if (object != null) {
-                    putVar(vars, object);
-//                    vars.put(object.toString(), wordgroupToVariable2(object));
-                }
-                if (parts.get("iobj") != null && !parts.get("iobj").isEmpty()) {
-                    vars.put(parts.get("iobj").toString(), wordgroupToVariable2(parts.get("iobj")));
-                }
-                formula = new Formula(logicalForm(parts.get("verb"), new ArrayList(vars.values()), dialect));
+                Formula[] formulas = new Formula[2];
+                if (idxNorSubject != -1) {
+                    WordGroup[] subjs = splitConnectiveSides(subject, idxNorSubject);
 
+                    for (int i = 0; i < subjs.length; i++) {
+                        Map<String, String> vars = new LinkedHashMap();
+                        if (subject != null && !subjs[i].isEmpty()) {
+                            putVar(vars, subjs[i], dialect);
+                        }
+                        if (object != null && !object.isEmpty()) {
+                            putVar(vars, object, dialect);
+                        }
+                        if (iobject != null && !iobject.isEmpty()) {
+                            putVar(vars, iobject, dialect);
+                        }
+
+                        formulas[i] = new Formula(logicalForm(parts.get("verb"), new ArrayList(vars.values()), dialect));
+                        formulas[i].negate();
+                    }
+                } else {
+                    WordGroup[] objs = splitConnectiveSides(object, idxNorObject);
+
+                    for (int i = 0; i < objs.length; i++) {
+                        Map<String, String> vars = new LinkedHashMap();
+
+                        if (subject != null && !subject.isEmpty()) {
+                            putVar(vars, subject, dialect);
+                        }
+                        if (object != null && !objs[i].isEmpty()) {
+                            putVar(vars, objs[i], dialect);
+                        }
+                        if (iobject != null && !iobject.isEmpty()) {
+                            putVar(vars, iobject, dialect);
+                        }
+
+                        formulas[i] = new Formula(logicalForm(parts.get("verb"), new ArrayList(vars.values()), dialect));
+                        formulas[i].negate();
+                    }
+                }
+                formula = new Formula(formulas[0], Connective.CONJUNCTION, formulas[1]);
             }
-            if (subject.eqwci(0, "someone")) {
+            if (subject != null && subject.eqwci(0, "someone")) {
                 if (subject.get(1).isPlaceHolder()) {
                     int k = subject.get(1).getClauseId();
                     Clause sub = clause.getSub(k);
@@ -240,7 +276,7 @@ public class Formalizer {
                         ExtWord someone = new ExtWord(varNames[idxVar], "NN", varNames[idxVar]);
                         sub.add(someone);
                         Formula left = buildFormula(clause.getSub(k), conclusion);
-                        
+
                         WordGroup wg = new WordGroup(clause.words().subList(2, clause.words().size()));
                         wg.add(0, someone);
                         Formula right = buildFormula(new Clause(wg), conclusion);
@@ -248,8 +284,8 @@ public class Formalizer {
                         formula = new Formula(left, Connective.CONJUNCTION, right);
                         formula.addQuantifier(Quantifier.EXISTENTIAL, varNames[idxVar]);
                         idxVar++;
-                    }else if (sub.words().eqwci(0, "who")) {
-                        sub.words().get(0).change(varNames[idxVar],"NN");
+                    } else if (sub.words().eqwci(0, "who")) {
+                        sub.words().get(0).change(varNames[idxVar], "NN");
                         Formula left = buildFormula(clause.getSub(k), conclusion);
                         Formula right = new Formula(logicalForm(object, Arrays.asList(varNames[idxVar]), dialect));
                         formula = new Formula(left, Connective.CONJUNCTION, right);
@@ -316,6 +352,13 @@ public class Formalizer {
         return wg.get(0).word().substring(0, 1);
     }
 
+    private WordGroup[] splitConnectiveSides(WordGroup wg, int idxConnective) {
+        WordGroup[] ret = new WordGroup[2];
+        ret[0] = new WordGroup(wg.subList(0, idxConnective));
+        ret[1] = new WordGroup(wg.subList(idxConnective + 1, wg.size()));
+        return ret;
+    }
+
     private static String buildPascalCase(String s) {
         return s.substring(0, 1).toUpperCase() + s.substring(1).toLowerCase();
     }
@@ -328,15 +371,21 @@ public class Formalizer {
                 .collect(Collectors.toList());
     }
 
-    private void putVar(Map<String, String> vars, WordGroup subject) {
+    private void putVar(Map<String, String> vars, WordGroup subject, FormalizationDialect dialect) {
         String key = subject.toString();
-        String value = wordgroupToVariable2(subject);
-        List<String> found = getKeysByValue(vars, value);
-        if (!found.isEmpty()) {
-            value = Character.toString((char) (((int) value.charAt(0)) + 1));
-
+        if (subject.isPronoun() && subject.get(0).getReference() != null) {
+            key = subject.get(0).getReference().toString();
         }
-        vars.put(key, value);
+        if (dialect == FormalizationDialect.LOGICIAN) {
+            String value = wordgroupToVariable2(subject);
+            List<String> found = getKeysByValue(vars, value);
+            if (!found.isEmpty()) {
+                value = Character.toString((char) (((int) value.charAt(0)) + 1));
+            }
+            vars.put(key, value);
+        } else {
+            vars.put(key, wordgroupToVariable(subject));
+        }
     }
 
 }
